@@ -1,0 +1,1416 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Synthetic reviews project and record contracts",
+  "description": "Proposed v1 schema; enforce formats with a format-aware validator and apply cross-record rules from workflow_plan.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.1.0"
+    },
+    "project_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "is_synthetic": {
+      "const": true
+    },
+    "client": {
+      "$ref": "#/$defs/client"
+    },
+    "stores": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/store"
+      },
+      "minItems": 1
+    },
+    "personas": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/persona"
+      },
+      "minItems": 1
+    },
+    "scenarios": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/scenario"
+      },
+      "minItems": 1
+    },
+    "run_config": {
+      "$ref": "#/$defs/run_config"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/assumption"
+      },
+      "minItems": 0
+    },
+    "traceability": {
+      "$ref": "#/$defs/traceability"
+    },
+    "knowledge_sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/source_record"
+      }
+    },
+    "scenario_approval": {
+      "$ref": "#/$defs/scenario_approval"
+    }
+  },
+  "required": [
+    "schema_version",
+    "project_id",
+    "is_synthetic",
+    "client",
+    "stores",
+    "personas",
+    "scenarios",
+    "run_config",
+    "assumptions",
+    "traceability",
+    "knowledge_sources",
+    "scenario_approval"
+  ],
+  "$defs": {
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "description": {
+          "type": "string",
+          "minLength": 1
+        },
+        "industry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "positioning": {
+          "type": "string",
+          "minLength": 1
+        },
+        "markets": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "product_or_service_categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "service_expectations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "client_id",
+        "name",
+        "description",
+        "industry",
+        "positioning",
+        "markets",
+        "product_or_service_categories",
+        "channels",
+        "service_expectations"
+      ]
+    },
+    "store": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "address": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "line1": {
+              "type": "string",
+              "minLength": 1
+            },
+            "line2": {
+              "type": "string"
+            },
+            "city": {
+              "type": "string",
+              "minLength": 1
+            },
+            "region": {
+              "type": "string"
+            },
+            "postal_code": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "line1",
+            "city",
+            "postal_code"
+          ]
+        },
+        "country_code": {
+          "type": "string",
+          "pattern": "^[A-Z]{2}$"
+        },
+        "timezone": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supported_languages": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "sampling_weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "opening_weekdays": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          }
+        },
+        "active_from": {
+          "type": "string",
+          "format": "date"
+        },
+        "active_to": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "required": [
+        "store_id",
+        "name",
+        "address",
+        "country_code",
+        "timezone",
+        "supported_languages"
+      ]
+    },
+    "persona": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "persona_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "shopping_goals": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "product_knowledge": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "price_sensitivity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "service_expectations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "writing_style": {
+          "type": "string",
+          "minLength": 1
+        },
+        "complaint_style": {
+          "type": "string",
+          "minLength": 1
+        },
+        "positive_style": {
+          "type": "string",
+          "minLength": 1
+        },
+        "emotional_intensity": {
+          "enum": [
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "review_probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "rating_adjustment": {
+          "type": "number",
+          "minimum": -2,
+          "maximum": 2
+        },
+        "sampling_weight": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "persona_id",
+        "name",
+        "summary",
+        "shopping_goals",
+        "product_knowledge",
+        "price_sensitivity",
+        "service_expectations",
+        "writing_style",
+        "complaint_style",
+        "positive_style",
+        "emotional_intensity",
+        "review_probability",
+        "rating_adjustment",
+        "sampling_weight"
+      ]
+    },
+    "outcome_option": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "enum": [
+            "none",
+            "minor",
+            "moderate",
+            "major"
+          ]
+        },
+        "resolution_status": {
+          "enum": [
+            "not_applicable",
+            "resolved_immediately",
+            "resolved_after_follow_up",
+            "partially_resolved",
+            "unresolved"
+          ]
+        },
+        "weight": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "severity",
+        "resolution_status",
+        "weight"
+      ]
+    },
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "type": "string",
+          "minLength": 1
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "eligible_persona_ids": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "categories": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "incident_present": {
+          "type": "boolean"
+        },
+        "purchase_completed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "baseline_score": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "sampling_weight": {
+          "type": "number",
+          "minimum": 0
+        },
+        "outcome_options": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/outcome_option"
+          },
+          "minItems": 1
+        }
+      },
+      "required": [
+        "scenario_id",
+        "name",
+        "family",
+        "facts",
+        "eligible_persona_ids",
+        "channels",
+        "categories",
+        "incident_present",
+        "purchase_completed",
+        "baseline_score",
+        "sampling_weight",
+        "outcome_options"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "incident_present": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "outcome_options": {
+                "items": {
+                  "properties": {
+                    "severity": {
+                      "const": "none"
+                    },
+                    "resolution_status": {
+                      "const": "not_applicable"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "outcome_options": {
+                "items": {
+                  "properties": {
+                    "severity": {
+                      "enum": [
+                        "minor",
+                        "moderate",
+                        "major"
+                      ]
+                    },
+                    "resolution_status": {
+                      "enum": [
+                        "resolved_immediately",
+                        "resolved_after_follow_up",
+                        "partially_resolved",
+                        "unresolved"
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parameters": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "input_cost_per_million_tokens": {
+          "type": "number",
+          "minimum": 0
+        },
+        "output_cost_per_million_tokens": {
+          "type": "number",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "provider",
+        "name",
+        "parameters"
+      ]
+    },
+    "run_config": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "date_start": {
+          "type": "string",
+          "format": "date"
+        },
+        "date_end": {
+          "type": "string",
+          "format": "date"
+        },
+        "volume_mode": {
+          "enum": [
+            "visits",
+            "accepted_reviews"
+          ]
+        },
+        "target_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_visits": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "language_weights": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "weekday_weights": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "seed": {
+          "type": "integer"
+        },
+        "model": {
+          "$ref": "#/$defs/model"
+        },
+        "max_llm_calls": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_cost": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        },
+        "review_length_chars": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "min": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "min",
+            "max"
+          ]
+        },
+        "max_attempts_per_review": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "recommendation_enabled": {
+          "type": "boolean"
+        },
+        "mention_probabilities": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "store": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "employee_name": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "required": [
+            "product",
+            "store",
+            "employee_name"
+          ]
+        },
+        "rating_formula_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "recommendation_ranges": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 10
+            }
+          }
+        },
+        "review_probability_cap": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "review_multipliers": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scenario_family": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "rating": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "severity": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "resolution_status": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "number",
+                "minimum": 0
+              }
+            }
+          },
+          "required": [
+            "scenario_family",
+            "rating",
+            "severity",
+            "resolution_status"
+          ]
+        },
+        "persona_prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario_prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "review_prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operational_controls": {
+          "$ref": "#/$defs/operational_controls"
+        }
+      },
+      "required": [
+        "date_start",
+        "date_end",
+        "volume_mode",
+        "target_count",
+        "max_visits",
+        "language_weights",
+        "weekday_weights",
+        "seed",
+        "model",
+        "max_llm_calls",
+        "max_cost",
+        "currency",
+        "review_length_chars",
+        "max_attempts_per_review",
+        "recommendation_enabled",
+        "mention_probabilities",
+        "rating_formula_version",
+        "recommendation_ranges",
+        "review_probability_cap",
+        "review_multipliers",
+        "persona_prompt_version",
+        "scenario_prompt_version",
+        "review_prompt_version",
+        "operational_controls"
+      ]
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "value": {},
+        "basis": {
+          "enum": [
+            "user_supplied",
+            "source_supported",
+            "proposed_default",
+            "generated_assumption"
+          ]
+        },
+        "explanation": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "field",
+        "value",
+        "basis",
+        "explanation"
+      ]
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "is_synthetic": {
+          "const": true
+        },
+        "date": {
+          "type": "string",
+          "format": "date"
+        },
+        "store_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "persona_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scenario_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "channel": {
+          "type": "string",
+          "minLength": 1
+        },
+        "category": {
+          "type": "string",
+          "minLength": 1
+        },
+        "facts": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "incident_present": {
+          "type": "boolean"
+        },
+        "severity": {
+          "enum": [
+            "none",
+            "minor",
+            "moderate",
+            "major"
+          ]
+        },
+        "resolution_status": {
+          "enum": [
+            "not_applicable",
+            "resolved_immediately",
+            "resolved_after_follow_up",
+            "partially_resolved",
+            "unresolved"
+          ]
+        },
+        "rating": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 5
+        },
+        "recommendation_likelihood": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 10
+        },
+        "review_probability": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "selected_for_review": {
+          "type": "boolean"
+        },
+        "mentions": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "product": {
+              "type": "boolean"
+            },
+            "store": {
+              "type": "boolean"
+            },
+            "employee_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          },
+          "required": [
+            "product",
+            "store",
+            "employee_name"
+          ]
+        },
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "artifact_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      },
+      "required": [
+        "event_id",
+        "run_id",
+        "is_synthetic",
+        "date",
+        "store_id",
+        "persona_id",
+        "scenario_id",
+        "language",
+        "channel",
+        "category",
+        "facts",
+        "incident_present",
+        "severity",
+        "resolution_status",
+        "rating",
+        "recommendation_likelihood",
+        "review_probability",
+        "selected_for_review",
+        "mentions",
+        "schema_version",
+        "artifact_version"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "incident_present": {
+                "const": false
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "severity": {
+                "const": "none"
+              },
+              "resolution_status": {
+                "const": "not_applicable"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "severity": {
+                "enum": [
+                  "minor",
+                  "moderate",
+                  "major"
+                ]
+              },
+              "resolution_status": {
+                "enum": [
+                  "resolved_immediately",
+                  "resolved_after_follow_up",
+                  "partially_resolved",
+                  "unresolved"
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "is_synthetic": {
+          "const": true
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "language": {
+          "type": "string",
+          "minLength": 1
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "accepted_attempt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "validation_status": {
+          "const": "passed"
+        },
+        "validation_checks": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1
+        },
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "artifact_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      },
+      "required": [
+        "review_id",
+        "run_id",
+        "event_id",
+        "is_synthetic",
+        "text",
+        "language",
+        "created_at",
+        "accepted_attempt_id",
+        "validation_status",
+        "validation_checks",
+        "schema_version",
+        "artifact_version"
+      ]
+    },
+    "attempt": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "attempt_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "attempt_number": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected",
+            "api_error",
+            "interrupted"
+          ]
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "response_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "failure_reasons": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 0
+        },
+        "input_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "output_tokens": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "estimated_cost": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "created_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "schema_version": {
+          "const": "1.1.0"
+        },
+        "artifact_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        }
+      },
+      "required": [
+        "attempt_id",
+        "event_id",
+        "run_id",
+        "attempt_number",
+        "status",
+        "model",
+        "prompt_version",
+        "prompt_sha256",
+        "response_text",
+        "failure_reasons",
+        "input_tokens",
+        "output_tokens",
+        "estimated_cost",
+        "created_at",
+        "schema_version",
+        "artifact_version"
+      ]
+    },
+    "change": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "parent_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "pattern": "^\\d+\\.\\d+\\.\\d+$"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "changed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "commit_text": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "version",
+        "parent_version",
+        "changed_at",
+        "commit_text"
+      ]
+    },
+    "traceability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "commit_text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change_history": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/change"
+          }
+        }
+      },
+      "required": [
+        "version",
+        "commit_text",
+        "change_history"
+      ]
+    },
+    "source_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "retrieved_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "minLength": 1
+        },
+        "client_id": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "retrieved_at",
+        "status",
+        "client_id"
+      ]
+    },
+    "scenario_approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "library_version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "content_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "approved_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "approved_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "approval_text": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "library_version",
+        "content_sha256",
+        "approved_at",
+        "approved_by",
+        "approval_text"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "approved"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "approved_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "approved_by": {
+                "type": "string",
+                "minLength": 1
+              },
+              "approval_text": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "approved_at": {
+                "type": "null"
+              },
+              "approved_by": {
+                "type": "null"
+              },
+              "approval_text": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "operational_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_runtime_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_output_tokens_per_call": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "request_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "max_api_attempts_per_request": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "backoff_initial_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "backoff_max_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "consecutive_api_failure_limit": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "max_runtime_seconds",
+        "max_output_tokens_per_call",
+        "concurrency",
+        "request_timeout_seconds",
+        "max_api_attempts_per_request",
+        "backoff_initial_seconds",
+        "backoff_max_seconds",
+        "consecutive_api_failure_limit"
+      ]
+    }
+  },
+  "x-artifact-metadata": {
+    "version": "1.1.0",
+    "commit_text": "Add KB-backed intake, missing-target prompts, scenario approval, outcome constraints, quality gates and operational controls",
+    "change_history": [
+      {
+        "version": "1.0.0",
+        "commit_text": "Define generalized synthetic review workflow and initial schema",
+        "changed_at": null
+      },
+      {
+        "version": "1.1.0",
+        "commit_text": "Add KB-backed intake, missing-target prompts, scenario approval, outcome constraints, quality gates and operational controls",
+        "changed_at": "2026-10-15T09:17:44.016890+00:00"
+      }
+    ]
+  }
+}

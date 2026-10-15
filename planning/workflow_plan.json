@@ -1,0 +1,696 @@
+{
+  "plan_version": "1.3.0",
+  "status": "proposed",
+  "purpose": "Generate internally labelled synthetic review datasets for any configured retail or service client, for testing and reporting demonstrations.",
+  "scope": {
+    "initial": "Store-based businesses; client-specific categories, channels, personas and scenarios are configurable.",
+    "not_in_initial_scope": [
+      "Publishing reviews as genuine customer feedback",
+      "Live customer-data reconstruction",
+      "Automated BigQuery deployment"
+    ]
+  },
+  "required_business_inputs": {
+    "client_description": {
+      "required": [
+        "client_id",
+        "name",
+        "description",
+        "industry",
+        "markets",
+        "product_or_service_categories",
+        "channels",
+        "positioning",
+        "service_expectations"
+      ],
+      "guidance": "Description must explain what is sold, to whom, where and how. Extract structured fields from prose; flag unknown facts instead of inventing them.",
+      "source": "Selected client in mktg_kb_clients, supplemented by supplied documents and explicit corrections."
+    },
+    "store_list": {
+      "required_per_store": [
+        "store_id",
+        "name",
+        "address",
+        "country_code",
+        "timezone",
+        "supported_languages"
+      ],
+      "optional": [
+        "channels",
+        "categories",
+        "sampling_weight",
+        "opening_weekdays",
+        "active_from",
+        "active_to"
+      ],
+      "guidance": "Use unique stable IDs. Preserve postal codes as strings. Use explicit country codes and IANA timezones. Defaults for availability must be documented.",
+      "source": "Selected client stores index and records when available; otherwise request a store list."
+    }
+  },
+  "additional_run_inputs": {
+    "required": [
+      "date_start",
+      "date_end",
+      "volume_mode",
+      "target_count",
+      "language_weights",
+      "seed",
+      "model",
+      "max_llm_calls",
+      "max_cost",
+      "currency"
+    ],
+    "suggested_defaults": {
+      "review_length_chars": {
+        "min": 60,
+        "max": 800
+      },
+      "employee_name_probability": 0,
+      "product_mention_probability": 0.5,
+      "store_mention_probability": 0.5,
+      "max_attempts_per_review": 3,
+      "recommendation_enabled": true
+    },
+    "decisions": [
+      "Choose visit count versus exact accepted-review target.",
+      "Set date range, languages and store/calendar distribution.",
+      "Choose a plausible simulation distribution or an intentionally balanced test dataset.",
+      "Choose model/provider, output destination and budget."
+    ],
+    "default_policy": "Defaults are proposals, saved with provenance; neither persona prevalence nor incident frequency is claimed to be measured customer behaviour.",
+    "target_collection": {
+      "extract_first": [
+        "volume_mode",
+        "target_count",
+        "date_start",
+        "date_end",
+        "language_weights"
+      ],
+      "source_order": [
+        "explicit current user instructions",
+        "initial run documents",
+        "documented project run configuration"
+      ],
+      "ask_when_missing": "Prompt once for the missing or conflicting targets only. Never silently choose visits versus accepted reviews, invent a count or reporting period.",
+      "question_template": "For this run, please specify the missing items: target number and whether it counts simulated visits or accepted reviews; reporting dates; languages and desired mix.",
+      "gate": "Do not start simulation or review generation until targets are complete. KB intake and persona/scenario preparation can continue independently.",
+      "additional_policy": "Resolve provider and budget before any paid LLM calls, including persona/scenario creation and semantic QA."
+    }
+  },
+  "workflow": [
+    {
+      "step": "intake",
+      "name": "Collect and normalize inputs",
+      "actions": [
+        "Resolve the selected client from the external mktg_kb_clients indexes and read relevant knowledge and open questions.",
+        "Collect client description and store list from source-backed KB records and supplied documents; record paths, hashes and status.",
+        "Extract run targets from initial documents; prompt only for missing or ambiguous targets.",
+        "Normalize IDs, addresses, categories, channels and languages; validate completeness and unique store IDs.",
+        "Record assumptions, corrections and unresolved material conflicts.",
+        "After intake validation succeeds, archive request files to projects/<project_id>/source_inputs/<intake_id>/ following input_archival; verify originals before inbox cleanup.",
+        "Save intake_manifest.json, update source references and finalize the intake checkpoint after the transfer completes."
+      ],
+      "output": [
+        "client",
+        "stores",
+        "run_config",
+        "assumptions",
+        "source_inputs/<intake_id>/",
+        "source_inputs/<intake_id>/intake_manifest.json"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "intake_complete",
+        "required": true,
+        "quality_checks": [
+          "Client ownership and KB provenance recorded",
+          "Store IDs and required fields valid",
+          "Targets complete or explicitly pending",
+          "Request files preserved at destination with matching hashes",
+          "Intake manifest and updated source references saved; only verified originals removed from inbox"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "0",
+      "name": "Create personas",
+      "actions": [
+        "Derive a configurable set of distinct behavioural personas from the client context.",
+        "Describe shopping goals, product knowledge, price sensitivity, service expectations and review-writing style.",
+        "Assign explicit sampling weights, review propensity and rating adjustment.",
+        "Check coverage, overlap and relevance; validate structured output.",
+        "Save a versioned persona library before simulation."
+      ],
+      "output": [
+        "personas"
+      ],
+      "rules": [
+        "Focus on behaviour rather than demographic stereotypes.",
+        "Generated weights are modelling assumptions unless supported by supplied evidence."
+      ],
+      "checkpoint": {
+        "checkpoint_type": "personas_complete",
+        "required": true,
+        "quality_checks": [
+          "Personas fit the selected client",
+          "Behavioural coverage and distinct voices checked",
+          "Weights and review propensity valid; assumptions recorded"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "1",
+      "name": "Recommend scenarios and obtain approval",
+      "actions": [
+        "Derive experience families from the client categories, channels and customer journey.",
+        "Create positive, mixed and negative scenario templates with facts, baseline score and explicit incident status.",
+        "Specify eligible personas, channels, categories, severities and resolutions.",
+        "Validate scenario coverage and logical compatibility.",
+        "Present the recommended scenario library with IDs, summaries, sentiment coverage, proposed weights, eligibility and outcome options, plus rationale and assumptions.",
+        "Save the candidate library version and content hash with approval status pending.",
+        "Wait for explicit user approval of that exact library; apply requested changes and present the revised version.",
+        "Only after approval, freeze the library and proceed to dependent simulation and review generation."
+      ],
+      "output": [
+        "scenarios"
+      ],
+      "rules": [
+        "Templates contain no fixed visit date, store ID or final rating.",
+        "No-incident scenarios allow only severity none and resolution not_applicable."
+      ],
+      "approval_gate": {
+        "required": true,
+        "scope": "exact scenario library version and content hash",
+        "record": [
+          "status",
+          "library_version",
+          "content_sha256",
+          "approved_at",
+          "approved_by",
+          "approval_text"
+        ],
+        "invalidated_by": "Any change to scenario content, weights, eligibility or outcome options requires renewed approval.",
+        "independent_work": "Schema work, operational setup and input validation may continue while waiting."
+      },
+      "checkpoint": {
+        "checkpoint_type": "scenarios_approved",
+        "required": true,
+        "quality_checks": [
+          "Scenario coverage and compatibility checked",
+          "Outcome constraints pass",
+          "Explicit approval matches saved library version and hash"
+        ],
+        "human_approval_required": true
+      }
+    },
+    {
+      "step": "2",
+      "name": "Configure and validate simulation",
+      "actions": [
+        "Verify target completeness and approved scenario hash; stop dependent work if either is missing or stale.",
+        "Save sampling weights, calendar rules, rating and review-propensity rules, prompt versions and budget.",
+        "Check that eligible combinations exist and weights can be normalized.",
+        "Freeze an input snapshot, configuration hash and resource versions under a run ID."
+      ],
+      "output": [
+        "run_manifest"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "configuration_ready",
+        "required": true,
+        "quality_checks": [
+          "Required targets complete",
+          "Budgets, provider and output paths configured",
+          "Approved scenario hash current",
+          "Input snapshot and configuration hashes frozen"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "3",
+      "name": "Simulate visits",
+      "actions": [
+        "Sample an eligible date and store, then language, persona and compatible scenario using a seeded RNG.",
+        "Sample severity and resolution only from the scenario-compatible distribution.",
+        "Enforce all outcome constraints and fail incompatible canonical events before review selection.",
+        "Construct a single canonical event with concrete facts and final outcome.",
+        "Compute rating and optional recommendation score with versioned rules."
+      ],
+      "output": [
+        "events"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "events_validated",
+        "required": true,
+        "quality_checks": [
+          "Event IDs and references valid",
+          "Store/date/channel/language eligibility checked",
+          "Outcome pairs and ratings consistent"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "4",
+      "name": "Decide which visits produce reviews",
+      "actions": [
+        "Compute review-writing probability from persona propensity and configured event multipliers, clamped to the configured maximum.",
+        "Draw a review decision; persist probability and selection result for every visit.",
+        "Skip LLM calls for unselected visits."
+      ],
+      "output": [
+        "selected_events",
+        "event_audit"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "selection_complete",
+        "required": true,
+        "quality_checks": [
+          "Probabilities within bounds",
+          "Selected/skipped decisions persisted",
+          "Selection counters reconcile"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "5",
+      "name": "Generate review text",
+      "actions": [
+        "Compose a versioned prompt from canonical event facts, persona voice, language, mention flags and length constraints.",
+        "Call the chosen LLM only for selected events.",
+        "Keep structured scores and IDs authoritative; the LLM supplies review wording only.",
+        "Track attempts, tokens, estimated cost and API errors."
+      ],
+      "output": [
+        "review_candidates"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "generation_recorded",
+        "required": true,
+        "quality_checks": [
+          "Each dispatched call has an attempt record",
+          "Responses or errors saved",
+          "Usage and budget reservations reconciled"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "6",
+      "name": "Validate and accept reviews",
+      "actions": [
+        "Check nonempty text, language, length and absence of prompt artifacts.",
+        "Check consistency with canonical facts, rating and outcome; use a semantic check where deterministic rules cannot decide.",
+        "Reject exact duplicates and flag high similarity.",
+        "Retry failed candidates within limits; retain final failures with reasons.",
+        "Accept valid reviews with stable review IDs and an explicit synthetic marker.",
+        "Record structured quality results; keep uncertain candidates pending and exclude them from accepted-review counts."
+      ],
+      "output": [
+        "reviews",
+        "validation_failures"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "reviews_validated",
+        "required": true,
+        "quality_checks": [
+          "Accepted reviews pass required checks",
+          "Duplicates and uncertain results handled",
+          "Failures retained; accepted review IDs unique"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "7",
+      "name": "Persist and export",
+      "actions": [
+        "Checkpoint events and accepted reviews incrementally with idempotent IDs and resumable status.",
+        "Save libraries/configuration as JSON; use JSONL for appendable event, review and attempt records.",
+        "Create the legacy six-column CSV as a derived reporting view.",
+        "Validate exported row counts, types, quoting and read-back; preserve original text in canonical JSONL.",
+        "Include artifact version, commit_text and change history in output JSON; link JSONL rows to the versioned manifest."
+      ],
+      "output": [
+        "project.json",
+        "run_manifest.json",
+        "events.jsonl",
+        "reviews.jsonl",
+        "attempts.jsonl",
+        "reviews.csv"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "exports_verified",
+        "required": true,
+        "quality_checks": [
+          "JSON/JSONL and CSV read-back successful",
+          "Export row counts reconcile",
+          "Version and commit metadata present"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "step": "8",
+      "name": "Quality report and downstream handoff",
+      "actions": [
+        "Report visits, selected events, accepted reviews, failures, retry counts, costs and observed review rate.",
+        "Compare actual store/date/language/persona/scenario/rating distributions with configured expectations.",
+        "Distinguish visit-population mix from review-population mix after selection bias.",
+        "Produce a labelled synthetic dataset ready for optional BigQuery ingestion and Looker Studio reporting."
+      ],
+      "output": [
+        "quality_report.json"
+      ],
+      "checkpoint": {
+        "checkpoint_type": "handoff_complete",
+        "required": true,
+        "quality_checks": [
+          "Quality report and distribution checks complete",
+          "Target attained or explicit partial/failure status recorded",
+          "Output inventory and known limitations recorded"
+        ],
+        "human_approval_required": false
+      }
+    }
+  ],
+  "modelling_rules": {
+    "ratings": "Proposed initial formula: round_half_up(clamp(scenario.baseline_score + persona.rating_adjustment + uniform(-0.2, 0.2), 1, 5)). Severity/resolution affect narrative and selection probability, but not rating in this initial model; validate semantic agreement. Store the formula version explicitly.",
+    "recommendation": "Optional synthetic 0–10 score conditional on rating; default ranges 1:[0,2], 2:[2,4], 3:[4,6], 4:[7,8], 5:[9,10]. It is not measured NPS.",
+    "review_probability": "Clamp persona.review_probability × configured scenario/rating/severity/resolution multipliers to [0, 0.95]. All maps are explicit in run_config.",
+    "sampling": "Filter by eligibility before normalizing weights; fail clearly when no valid candidate exists. Document whether store/calendar sampling implies store-specific traffic.",
+    "target_mode": "visits stops after target_count visits. accepted_reviews continues until target_count accepted reviews or max_visits, max_llm_calls or max_cost is reached. Budget exhaustion produces a partial run with a stop reason.",
+    "reproducibility": "Seed and versioned snapshots reproduce structured simulation when code and execution order are fixed. LLM text may vary; retain exact prompts/responses or hashes plus retrievable artifacts.",
+    "resume": "Persist RNG state or use deterministic per-event seeds, restore counters and budget, and never regenerate accepted event IDs. Reconcile interrupted LLM calls before retrying."
+  },
+  "schema_files": {
+    "project_and_records": "synthetic_reviews.schema.json",
+    "draft": "https://json-schema.org/draft/2020-12/schema",
+    "record_validation": "The root validates project configuration. Validate each JSONL line against #/$defs/event, #/$defs/review or #/$defs/attempt.",
+    "checkpoints": "checkpoint.schema.json"
+  },
+  "storage_layout": [
+    "inputs/",
+    "projects/<project_id>/project.json",
+    "projects/<project_id>/scenario_approval.json",
+    "projects/<project_id>/checkpoints/<stage>/<checkpoint_id>.json",
+    "projects/<project_id>/runs/<run_id>/run_manifest.json",
+    "projects/<project_id>/runs/<run_id>/checkpoints/<stage>/<checkpoint_id>.json",
+    "projects/<project_id>/runs/<run_id>/events.jsonl",
+    "projects/<project_id>/runs/<run_id>/reviews.jsonl",
+    "projects/<project_id>/runs/<run_id>/attempts.jsonl",
+    "projects/<project_id>/runs/<run_id>/quality_report.json",
+    "projects/<project_id>/runs/<run_id>/exports/reviews.csv",
+    "projects/<project_id>/source_inputs/<intake_id>/",
+    "projects/<project_id>/source_inputs/<intake_id>/intake_manifest.json"
+  ],
+  "reporting_export": {
+    "columns": [
+      "date",
+      "store_id",
+      "store_address",
+      "rating",
+      "recommendation",
+      "review"
+    ],
+    "mapping": "Join review to event by event_id and store by store_id; use frozen run snapshots. Map recommendation_likelihood to recommendation and text to review.",
+    "synthetic_disclosure": "Include synthetic provenance in the export manifest and dataset/dashboard labels; retain is_synthetic in canonical records."
+  },
+  "validation_beyond_json_schema": [
+    "Referential integrity and unique IDs across resources.",
+    "date_start <= date_end; store operating dates and calendar eligibility.",
+    "Every weight group has positive total and covers the intended eligible values.",
+    "Compatibility of persona, scenario, store, language, channel and category.",
+    "No-incident outcome consistency; allowed outcome-pair constraints for incident scenarios.",
+    "Actual text length matches this run configuration.",
+    "Selected events are the only events with reviews; at most one accepted review per event.",
+    "Review budgets and accepted-review stopping conditions.",
+    "Prompt/model/version traceability and consistent resume checkpoints."
+  ],
+  "missing_from_previous_workflow": [
+    "Client-specific persona creation and scenario creation.",
+    "Explicit client input contract and configuration provenance.",
+    "Conditional outcome generation to prevent contradictory experiences.",
+    "Clear volume target and bounded stopping rules.",
+    "Post-generation validation, retries and duplicate checks.",
+    "Versioned IDs, run manifests, audit events and resumability.",
+    "Cost limits, error handling and distribution QA."
+  ],
+  "implementation_sequence": [
+    "Implement input loading and schema validation.",
+    "Implement persona/scenario creation with structured LLM outputs.",
+    "Implement deterministic event simulation and compatibility validation.",
+    "Implement provider adapter, validation and bounded retries.",
+    "Implement checkpointing, export and quality report.",
+    "Run a small end-to-end pilot before increasing volume."
+  ],
+  "open_design_details": [
+    "Tune persona count and scenario coverage for each client rather than fixing 14 and 55.",
+    "Define measurable semantic-validation criteria and chosen language/similarity checks during implementation.",
+    "Confirm whether future online-only businesses need a generalized location abstraction instead of stores.",
+    "Implement manifest/checkpoint and quality-report schemas using the common traceability contract; validate operational state transitions in code."
+  ],
+  "commit_text": "Move validated request inputs into project source_inputs with verified preservation and intake provenance",
+  "change_history": [
+    {
+      "version": "1.0.0",
+      "commit_text": "Define generalized synthetic review workflow and initial schema",
+      "changed_at": null
+    },
+    {
+      "version": "1.1.0",
+      "commit_text": "Add KB-backed intake, missing-target prompts, scenario approval, outcome constraints, quality gates and operational controls",
+      "changed_at": "2026-10-15T09:17:44.016890+00:00"
+    },
+    {
+      "version": "1.2.0",
+      "parent_version": "1.1.0",
+      "commit_text": "Add durable quality checkpoints at every major workflow stage and prepare project operating instructions",
+      "changed_at": "2026-10-15T09:25:06.292193+00:00"
+    },
+    {
+      "version": "1.3.0",
+      "parent_version": "1.2.0",
+      "commit_text": "Move validated request inputs into project source_inputs with verified preservation and intake provenance",
+      "changed_at": "2026-10-15T11:19:28.245712+00:00"
+    }
+  ],
+  "client_knowledge_source": {
+    "name": "mktg_kb_clients",
+    "root": "../mktg_kb_clients",
+    "access": "read_only",
+    "root_override": "Allow an explicit KB root path when projects are relocated.",
+    "retrieval_order": [
+      "Read KB AGENTS.md and root index.md.",
+      "Resolve the explicitly selected client; ask if absent or ambiguous.",
+      "Read client index.md, overview.md, open-questions.md and relevant strategy/products/stores pages via indexes.",
+      "Extract client description and store records with source paths, hashes, status and retrieval timestamp."
+    ],
+    "rules": [
+      "Never mix clients or infer the selected client from the historical example.",
+      "Use KB facts as the default source; explicit current user corrections override with provenance. Surface unresolved material conflicts.",
+      "Missing verification remains unverified. Do not assume historical store counts, hours, assortment or promotions are current.",
+      "Snapshot only the facts and evidence needed for this run in this project; never modify the external KB as part of generation.",
+      "If a store list is supplied separately, reconcile it with KB records and record the chosen scope.",
+      "Use brand guidance for factual context; customer review voice comes from personas rather than advertising copy."
+    ]
+  },
+  "outcome_constraints": {
+    "no_incident": "incident_present=false requires severity=none and resolution_status=not_applicable in both scenario options and generated events.",
+    "incident": "incident_present=true requires severity minor/moderate/major and one of the four actual resolution statuses; not_applicable is forbidden.",
+    "conditional_sampling": "Sample an allowed severity/resolution pair from the selected scenario, never independently from global unconditional lists.",
+    "facts": "Templates must leave sampled outcome-dependent facts open, or restrict options to those consistent with fixed facts. Resolve into a single canonical event before prompting.",
+    "score_consistency": "Validate rating against the concrete experience and resolution; contradictory events fail before LLM generation. Do not silently alter approved templates.",
+    "empty_options": "No valid outcome or zero total weight is a configuration error; stop rather than invent an outcome."
+  },
+  "quality_checks": {
+    "input_and_library": [
+      "Validate JSON Schema, required targets, source provenance, unique IDs and references.",
+      "Check persona/scenario coverage and positive weight totals after eligibility filtering.",
+      "Verify exact scenario approval hash and outcome constraints."
+    ],
+    "event": [
+      "Check date/store availability, language/channel/category eligibility and valid scores.",
+      "Check canonical facts against incident status and allowed outcome pairs."
+    ],
+    "review": [
+      "Require nonempty text within configured length and the selected language.",
+      "Reject prompt leakage, unsupported product/store/employee claims and contradictions with canonical facts.",
+      "Reject normalized exact duplicates; flag near duplicates using a versioned configured threshold.",
+      "Save check ID, validator version, pass/fail/warning, reason and relevant evidence for each candidate."
+    ],
+    "run_and_export": [
+      "Check counters, one accepted review per selected event, unique record IDs and referential integrity.",
+      "Read back JSON/JSONL and CSV; compare row counts and field types.",
+      "Report distributions and selection bias; use configured tolerances and sample size rather than expecting exact target proportions.",
+      "Check version, commit text, synthetic markers and source/approval lineage."
+    ],
+    "failure_policy": "Hard failures exclude a review and trigger bounded retry; exhausted candidates remain failed. Semantic uncertainty and near-duplicate flags remain pending review unless a versioned policy resolves them. Never mark pending items accepted.",
+    "limitations": "Semantic and language checks are fallible. Record methods and confidence where available; include a sampled human review in pilot evaluation.",
+    "implementation_decisions": [
+      "Choose language detector, semantic validator, similarity method and thresholds before production use."
+    ]
+  },
+  "traceability": {
+    "schema_version": "Identifies the data contract; increase for schema changes.",
+    "version": "Identifies each saved artifact revision, starting at 1.0.0; increase on edits.",
+    "commit_text": "Required human-readable description of what changed and why; this is metadata and does not imply a Git commit.",
+    "change_history": "Append version, parent version, actual timestamp and commit text; never fabricate historic timestamps or approval identities.",
+    "json_outputs": "Every JSON artifact includes traceability metadata. Every JSONL row includes schema_version and artifact_version and links to a manifest containing the version, commit_text and history.",
+    "lineage": "Each run stores source paths/hashes, project and library versions, scenario approval hash, seed, prompt/model versions and configuration hash.",
+    "immutability": "Completed run snapshots are immutable. Revisions create a new artifact version/run reference instead of overwriting history.",
+    "git": "Optionally record git_commit if a real commit exists; no repository initialization or Git commit is required by this metadata contract."
+  },
+  "operational_controls": {
+    "configuration_status": "The controls below are proposed implementation defaults; spending limits and run targets must be explicit before execution.",
+    "preflight": {
+      "checks": [
+        "Required sources accessible; inputs and targets valid.",
+        "Exact scenario library approved before simulation.",
+        "Provider credentials available through environment/secret storage, not saved JSON.",
+        "Budget, provider pricing assumptions and output directory configured.",
+        "No unresolved blocking quality or configuration errors."
+      ],
+      "result": "Return a concise readiness report with actionable missing items."
+    },
+    "limits": {
+      "required": [
+        "max_visits",
+        "max_llm_calls",
+        "max_cost",
+        "max_runtime_seconds",
+        "max_output_tokens_per_call"
+      ],
+      "coverage": "Include persona/scenario generation, review generation, semantic LLM checks and retries in project spending; allocate stage budgets and maintain cumulative totals.",
+      "enforcement": "Before dispatch, reserve estimated worst-case call cost using model prices and token limits. Stop new calls when reservation would exceed the cap. Reconcile actual usage afterwards; cost is an estimate, so this is not a provider-enforced billing guarantee.",
+      "partial_run": "Save results and an explicit stop reason when a limit prevents reaching the target."
+    },
+    "requests": {
+      "suggested_defaults": {
+        "concurrency": 1,
+        "request_timeout_seconds": 60,
+        "max_api_attempts_per_request": 3,
+        "backoff_initial_seconds": 2,
+        "backoff_max_seconds": 30
+      },
+      "retry_policy": "Retry transient timeouts, rate limits and server failures with exponential backoff and jitter; respect Retry-After. Do not retry invalid credentials or invalid requests without correction.",
+      "rate_limits": "Configure provider request/token limits and share reservations across concurrent workers.",
+      "uncertain_calls": "For a timeout after submission, reconcile provider request IDs where possible; otherwise record unknown completion/cost and charge conservatively against the local budget before retrying."
+    },
+    "content_retries": {
+      "suggested_max_candidates_per_review": 3,
+      "policy": "Content-repair attempts and transport retries are separately counted; both consume global call/cost/runtime limits. Supply failed checks on repair and retain all attempts.",
+      "exhausted": "Mark the event failed and continue if policy allows; accepted-review mode samples another event within remaining limits."
+    },
+    "checkpointing": {
+      "policy": "Persist event state and each attempt/acceptance before marking completion; atomically replace manifest/checkpoint files. Use a single writer or transaction-backed store for concurrency.",
+      "checkpoint_contents": [
+        "last durable event sequence",
+        "per-event status",
+        "RNG state or per-event seeds",
+        "accepted review IDs",
+        "call/token/cost counters and in-flight reservations",
+        "input/config/approval hashes"
+      ],
+      "storage_error": "Stop new calls on persistence failure. Reconcile a truncated JSONL tail against durable records before resume; never silently discard accepted records.",
+      "major_stages": "Apply stage_checkpoint_policy to intake and all numbered steps; retain existing event-level persistence."
+    },
+    "resume_and_deduplication": {
+      "policy": "Resume only when saved resource/configuration hashes match; changed inputs require a new run. Reconcile incomplete events and preserve accepted reviews.",
+      "ids": "Use stable run/event/attempt/review IDs. Replays must not duplicate accepted rows.",
+      "budget": "Restore consumed and reserved budgets; restarting does not reset limits."
+    },
+    "pause_cancel_and_status": {
+      "states": [
+        "draft",
+        "awaiting_targets",
+        "awaiting_scenario_approval",
+        "ready",
+        "running",
+        "paused",
+        "completed",
+        "partial",
+        "failed",
+        "cancelled"
+      ],
+      "policy": "Pause or cancel stops new dispatches, settles or records in-flight calls and saves a checkpoint. Completion requires target attainment and final validation.",
+      "report": [
+        "visits simulated",
+        "events selected",
+        "reviews accepted",
+        "pending and failed reviews",
+        "calls and retries",
+        "estimated spend versus budget",
+        "elapsed time",
+        "stop reason"
+      ]
+    },
+    "circuit_breaker": {
+      "suggested_consecutive_api_failures": 5,
+      "policy": "Pause after repeated provider failures rather than exhausting the budget. Fail immediately on authentication or persistent configuration errors. Resume after the underlying issue is corrected."
+    },
+    "pilot": {
+      "policy": "Start with a small run under explicit pilot targets, inspect quality and distribution results, then scale using the configured full-run target. A pilot does not silently change approved scenario content."
+    }
+  },
+  "stage_checkpoint_policy": {
+    "purpose": "A durable quality gate and resumable record after every major stage, in addition to per-event persistence.",
+    "path": "projects/<project_id>/checkpoints/<stage>/<checkpoint_id>.json for preparation; projects/<project_id>/runs/<run_id>/checkpoints/<stage>/<checkpoint_id>.json for execution.",
+    "contents": [
+      "schema_version",
+      "traceability with version and commit_text",
+      "checkpoint_id",
+      "project_id",
+      "run_id when applicable",
+      "stage",
+      "batch_id when applicable",
+      "status",
+      "timestamp",
+      "input/output paths, versions and SHA-256 hashes",
+      "quality check results",
+      "approval requirement and evidence",
+      "blockers",
+      "next_action"
+    ],
+    "gate": "Only passed checkpoints release dependent work. Failed or pending checkpoints retain artifacts and list corrective actions. Intake may remain pending for targets while independent persona/scenario work continues.",
+    "approval": "Scenario approval is the only mandatory human gate currently agreed. Other stage checkpoints are automatic quality gates, not additional permission requests. Never fabricate approval.",
+    "scenarios": "Save a pending checkpoint with the exact recommendation before asking for approval. On approval, save a new checkpoint referencing the exact version/hash.",
+    "streaming": "Stages 3–6 repeat per batch, with checkpoints linked by batch_id; preserve per-event and per-attempt durability. Final stage checkpoints aggregate all batches. Do not require all visits to finish before generating any reviews.",
+    "resume": "Verify artifacts and dependency hashes before reusing a passed checkpoint. Resume from the first incomplete or invalid stage; retain valid independent work.",
+    "invalidation": "Any upstream content/configuration change invalidates affected downstream checkpoints. Preserve previous checkpoint records; write new records with supersedes_checkpoint_id. Scenario changes require fresh approval.",
+    "write_policy": "Write a temporary file then atomically rename it. If checkpoint persistence fails, stop dependent dispatch and report the error.",
+    "completion": "A passed handoff checkpoint certifies the report is accurate, including partial results; it does not make a partial run completed."
+  },
+  "input_archival": {
+    "source": "inputs/<request_folder>/ or explicitly identified request files in inputs/",
+    "destination": "projects/<project_id>/source_inputs/<intake_id>/",
+    "trigger": "After client/project ownership, required intake fields and targets are resolved and intake validation succeeds, archive the request before marking its checkpoint passed.",
+    "actions": [
+      "Inventory only the files belonging to the request; record original paths, sizes and SHA-256 hashes.",
+      "Save a versioned intake_manifest.json recording source-to-destination mapping and an in_progress status before transferring files.",
+      "Preserve original filenames, relative folder structure and bytes in a unique intake directory; never overwrite an existing original.",
+      "Copy files to the destination, verify sizes and hashes, and remove each inbox original only after verifying its destination and confirming the source has not changed.",
+      "Update project references to the archived paths while retaining original inbox paths in provenance.",
+      "Mark the manifest completed and save the passed intake checkpoint only after all requested files are verified and transferred.",
+      "Remove empty request folders; retain the inputs directory and any housekeeping files."
+    ],
+    "pending": "Incomplete, ambiguous, unreadable or validation-failed requests remain in inputs with blockers recorded. Never move unrelated requests.",
+    "recovery": "On failure, retain the manifest and verified destination files, leave unverified originals in inputs and keep the intake checkpoint pending or failed. Resume by checking the mapping and hashes rather than duplicating or overwriting files.",
+    "manifest_fields": [
+      "schema_version",
+      "traceability",
+      "intake_id",
+      "project_id",
+      "status",
+      "created_at",
+      "completed_at",
+      "files: original_path, archived_path, size_bytes, sha256, transfer_status",
+      "blockers"
+    ],
+    "scope": "Archive supplied request files only; the external client KB stays read-only. This transfer is part of intake and does not require another approval.",
+    "later_inputs": "Use a new intake_id for additions or revisions; preserve earlier originals and invalidate affected downstream checkpoints."
+  }
+}
